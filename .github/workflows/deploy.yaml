@@ -1,29 +1,26 @@
 name: Deploy Toolkit
+
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
     paths:
-      - ice-cream-dataops2/**
+      - ice-cream-dataops/**
   workflow_dispatch:
 
 env:
   PYTHON_VERSION: '3.11'
-  # Change the TOOLKIT_VERSION depending on which version you are using
-  TOOLKIT_VERSION: '0.5.30'
+  TOOLKIT_VERSION: '0.5.30'   # keep CLI aligned with modules
+
 jobs:
   build-modules:
     strategy:
       matrix:
-        environment:
-           - test
-           - prod
+        environment: [ test, prod ]
     environment: ${{ matrix.environment }}
     runs-on: ubuntu-latest
     env:
       LOGIN_FLOW: client_credentials
       CDF_CLUSTER: westeurope-1
-      # You need to replace the number in CDF_PROJECT with your own CDF project number
       CDF_PROJECT: cdf-bootcamp-29-${{ matrix.environment }}
       IDP_TOKEN_URL: https://login.microsoftonline.com/16e3985b-ebe8-4e24-9da4-933e21a9fc81/oauth2/v2.0/token
       IDP_TENANT_ID: 16e3985b-ebe8-4e24-9da4-933e21a9fc81
@@ -39,12 +36,21 @@ jobs:
     name: Build & Deploy
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Install Cognite Toolkit
-        run: pip install cognite-toolkit==${{ env.TOOLKIT_VERSION }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install "cognite-toolkit==${{ env.TOOLKIT_VERSION }}"
+
+      # Run cdf from the project folder that contains modules/ and config.<env>.yaml
       - name: Build Toolkit Configurations
+        working-directory: ./ice-cream-dataops
         run: cdf build --env=${{ matrix.environment }}
+
       - name: Deploy Toolkit Configurations
+        working-directory: ./ice-cream-dataops
         run: cdf deploy --env=${{ matrix.environment }}
